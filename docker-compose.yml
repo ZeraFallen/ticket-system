@@ -1,0 +1,64 @@
+﻿services:
+  proxy:
+    build: ./proxy
+    image: ticket-app/proxy:${TAG:-latest}
+    ports:
+      - "8080:80"
+    depends_on:
+      - frontend
+      - api
+    restart: unless-stopped
+    networks:
+      - app-net
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BUILD_NUMBER: ${TAG:-dev}
+    image: ticket-app/frontend:${TAG:-latest}
+    restart: unless-stopped
+    networks:
+      - app-net
+
+  api:
+    build:
+      context: ./api
+      target: production
+    image: ticket-app/api:${TAG:-latest}
+    environment:
+      DB_HOST: db
+      DB_USER: ${DB_USER:-ticket_user}
+      DB_PASSWORD: ${DB_PASSWORD:-ticketpassword}
+      DB_NAME: ${DB_NAME:-ticket_db}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-net
+
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-ticket_db}
+      MYSQL_USER: ${DB_USER:-ticket_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-ticketpassword}
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-net
+
+volumes:
+  db-data:
+
+networks:
+  app-net:

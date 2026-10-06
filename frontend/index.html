@@ -1,0 +1,56 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>IT Helpdesk Ticket System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f4f6f8; }
+        .card { background: white; padding: 20px; border-radius: 8px; max-width: 600px; margin: auto; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { color: #333; }
+        input, button { padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        ul { list-style: none; padding: 0; }
+        li { background: #e9ecef; margin: 5px 0; padding: 10px; border-radius: 4px; }
+        footer { margin-top: 20px; font-size: 0.8em; color: #666; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Submit IT Helpdesk Ticket</h2>
+        <input type="text" id="title" placeholder="Issue title (e.g. PC-01 No Internet)">
+        <button onclick="submitTicket()">Submit Ticket</button>
+
+        <h3>Active Tickets</h3>
+        <ul id="tickets"></ul>
+
+        <footer>Build Version: <span id="build-tag">v1.0.0</span></footer>
+    </div>
+
+    <script>
+        async function loadTickets() {
+            try {
+                const res = await fetch('/api/tickets');
+                const data = await res.json();
+                const list = document.getElementById('tickets');
+                list.innerHTML = data.map(t => `<li><strong>#${t.id}:</strong> ${t.title} <em>(${t.status})</em></li>`).join('');
+            } catch (err) {
+                console.error("Failed to load tickets", err);
+            }
+        }
+
+        async function submitTicket() {
+            const title = document.getElementById('title').value;
+            if (!title) return;
+            await fetch('/api/tickets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title })
+            });
+            document.getElementById('title').value = '';
+            loadTickets();
+        }
+
+        loadTickets();
+    </script>
+</body>
+</html>

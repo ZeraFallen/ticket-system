@@ -1,15 +1,28 @@
-﻿services:
+# IT Helpdesk Ticket System
+#
+#   Browser -> proxy:80 -> frontend (static)
+#                       -> api:3000 -> db:3306
+#
+# Networks:
+#   web-net : proxy, frontend, api   (what the proxy can reach)
+#   db-net  : api, db                (internal only: DB is unreachable from outside/proxy)
+#
+# Only the proxy publishes a host port.
+
+services:
   proxy:
     build: ./proxy
     image: ticket-app/proxy:${TAG:-latest}
     ports:
-      - "8080:80"
+      - "${APP_PORT:-8080}:80"
     depends_on:
-      - frontend
-      - api
+      frontend:
+        condition: service_healthy
+      api:
+        condition: service_healthy
     restart: unless-stopped
     networks:
-      - app-net
+      - web-net
 
   frontend:
     build:
@@ -19,7 +32,7 @@
     image: ticket-app/frontend:${TAG:-latest}
     restart: unless-stopped
     networks:
-      - app-net
+      - web-net
 
   api:
     build:
@@ -36,29 +49,35 @@
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - app-net
+      - web-net
+      - db-net
 
   db:
-    image: mysql:8.4
+    build: ./db
+    image: ticket-app/db:${TAG:-latest}
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
       MYSQL_DATABASE: ${DB_NAME:-ticket_db}
       MYSQL_USER: ${DB_USER:-ticket_user}
       MYSQL_PASSWORD: ${DB_PASSWORD:-ticketpassword}
     volumes:
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
       - db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      # -h 127.0.0.1 forces TCP: the temporary init server is socket-only, so
+      # the API can't start until init.sql has really finished.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
     networks:
-      - app-net
+      - db-net
 
 volumes:
   db-data:
 
 networks:
-  app-net:
+  web-net:
+  db-net:
+    internal: true

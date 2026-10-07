@@ -1,3 +1,4 @@
-﻿.env
+.env
+jenkins/.env
 node_modules/
 *.zip

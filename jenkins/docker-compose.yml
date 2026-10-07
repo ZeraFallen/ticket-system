@@ -1,0 +1,22 @@
+# Jenkins controller, run separately from the app stack:
+#   cd jenkins && cp .env.example .env && docker compose up -d --build
+# UI: http://localhost:9090
+services:
+  jenkins:
+    build: .
+    image: ticket-app/jenkins:lts
+    container_name: jenkins
+    # root so the container can use the mounted docker.sock without matching GIDs.
+    # Acceptable for a local lab; see docs/jenkins-setup.md for hardening notes.
+    user: root
+    ports:
+      - "9090:8080"      # 8080 is taken by the app proxy
+      - "50000:50000"
+    env_file: .env
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:

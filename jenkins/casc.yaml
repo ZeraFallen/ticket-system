@@ -1,0 +1,52 @@
+# Jenkins Configuration as Code: no manual clicking after `docker compose up`.
+jenkins:
+  systemMessage: "IT Helpdesk Ticket System - CI/CD"
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+unclassified:
+  location:
+    url: "${JENKINS_URL:-http://localhost:9090/}"
+
+# Secrets are injected from jenkins/.env (never committed) and read by the
+# Jenkinsfile via withCredentials(...)
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string:
+              scope: GLOBAL
+              id: "ticket-db-root-password"
+              description: "MySQL root password for the ticket app"
+              secret: "${TICKET_DB_ROOT_PASSWORD}"
+          - string:
+              scope: GLOBAL
+              id: "ticket-db-password"
+              description: "MySQL app-user password for the ticket app"
+              secret: "${TICKET_DB_PASSWORD}"
+
+jobs:
+  - script: >
+      pipelineJob('ticket-system') {
+        description('Build, test, deploy and smoke-test the ticket system')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url("${REPO_URL}") }
+                branches('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(true)
+          }
+        }
+      }

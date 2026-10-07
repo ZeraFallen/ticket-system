@@ -48,3 +48,5 @@ flowchart LR
 - **No host bind mounts.** `init.sql` is baked into `ticket-app/db`, so the stack deploys identically from a laptop or from Jenkins-in-Docker (where host paths don't match container paths).
 - **Multi-stage API image.** `test` stage runs `npm test` (used by CI); `production` stage has prod deps only and runs as the non-root `node` user.
 - **Image tags.** `TAG` = Jenkins build number (`ticket-app/api:42`), `latest` locally.
+
+- **CI trigger test.** This line was added to confirm Jenkins builds on new commits.

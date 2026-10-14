@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function validTicket(ticketId) {
+      return request.resource.data.keys().hasAll([
+          'id', 'issue', 'description', 'category', 'location', 'requester',
+          'priority', 'status', 'assignee', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'id', 'issue', 'description', 'category', 'location', 'requester',
+          'priority', 'status', 'assignee', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.id == 'TKT-' + ticketId
+        && request.resource.data.issue is string
+        && request.resource.data.issue.size() > 0
+        && request.resource.data.issue.size() <= 120
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 1000
+        && request.resource.data.category in [
+          'Hardware', 'Network', 'Software', 'Account access', 'Equipment', 'Other'
+        ]
+        && request.resource.data.location is string
+        && request.resource.data.location.size() > 0
+        && request.resource.data.location.size() <= 80
+        && request.resource.data.requester is string
+        && request.resource.data.requester.size() > 0
+        && request.resource.data.requester.size() <= 80
+        && request.resource.data.priority in ['Low', 'Medium', 'High', 'Critical']
+        && request.resource.data.status in ['Open', 'In Progress', 'Resolved']
+        && request.resource.data.assignee in [
+          'Prince Maglalang', 'Alex Rivera', 'Jamie Lee', 'Unassigned'
+        ]
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    match /tickets/{ticketId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && validTicket(ticketId)
+        && request.resource.data.status == 'Open'
+        && request.resource.data.assignee == 'Unassigned';
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'assignee', 'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['status', 'assignee'])
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.status in ['Open', 'In Progress', 'Resolved']
+        && request.resource.data.assignee in [
+          'Prince Maglalang', 'Alex Rivera', 'Jamie Lee', 'Unassigned'
+        ];
+      allow delete: if false;
+    }
+  }
+}

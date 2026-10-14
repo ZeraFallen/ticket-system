@@ -1,0 +1,52 @@
+# Jenkins Configuration as Code: no manual clicking after `docker compose up`.
+jenkins:
+  systemMessage: "IT Ticketing - CI/CD"
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  # Firebase web config is public by design, so plain global env vars are enough.
+  # They are read by the Jenkinsfile and by `docker compose` (build args).
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: "VITE_FIREBASE_API_KEY"
+            value: "${VITE_FIREBASE_API_KEY}"
+          - key: "VITE_FIREBASE_AUTH_DOMAIN"
+            value: "${VITE_FIREBASE_AUTH_DOMAIN}"
+          - key: "VITE_FIREBASE_PROJECT_ID"
+            value: "${VITE_FIREBASE_PROJECT_ID}"
+          - key: "VITE_FIREBASE_APP_ID"
+            value: "${VITE_FIREBASE_APP_ID}"
+          - key: "VITE_FIREBASE_STORAGE_BUCKET"
+            value: "${VITE_FIREBASE_STORAGE_BUCKET:-}"
+          - key: "VITE_FIREBASE_MESSAGING_SENDER_ID"
+            value: "${VITE_FIREBASE_MESSAGING_SENDER_ID:-}"
+
+unclassified:
+  location:
+    url: "${JENKINS_URL:-http://localhost:9090/}"
+
+jobs:
+  - script: >
+      pipelineJob('ticket-system') {
+        description('Lint, build, deploy and smoke-test the IT ticketing app')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url("${REPO_URL}") }
+                branches('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(true)
+          }
+        }
+      }
